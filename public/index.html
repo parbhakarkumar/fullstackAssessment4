@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>QR Generator</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0a0a0f;
+      --surface: #111118;
+      --border: #1e1e2e;
+      --accent: #7c3aed;
+      --accent-glow: rgba(124, 58, 237, 0.35);
+      --accent-light: #a78bfa;
+      --text: #e2e2f0;
+      --muted: #6b6b85;
+      --success: #22d3ee;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'DM Mono', monospace;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 48px 16px;
+      overflow-x: hidden;
+    }
+
+    /* Ambient background glow */
+    body::before {
+      content: '';
+      position: fixed;
+      top: -200px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 800px;
+      height: 500px;
+      background: radial-gradient(ellipse, rgba(124, 58, 237, 0.12) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 48px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .badge {
+      display: inline-block;
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--accent-light);
+      background: rgba(124, 58, 237, 0.12);
+      border: 1px solid rgba(124, 58, 237, 0.3);
+      border-radius: 999px;
+      padding: 4px 14px;
+      margin-bottom: 16px;
+    }
+
+    h1 {
+      font-family: 'Syne', sans-serif;
+      font-size: clamp(2.2rem, 5vw, 3.8rem);
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      line-height: 1.05;
+      background: linear-gradient(135deg, #fff 30%, var(--accent-light) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .subtitle {
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 13px;
+      letter-spacing: 0.04em;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 36px;
+      width: 100%;
+      max-width: 900px;
+      position: relative;
+      z-index: 1;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 40px;
+    }
+
+    @media (max-width: 680px) {
+      .card { grid-template-columns: 1fr; padding: 24px; }
+    }
+
+    .form-section { display: flex; flex-direction: column; gap: 20px; }
+
+    label {
+      display: block;
+      font-size: 11px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 7px;
+    }
+
+    textarea, input[type="text"], select {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 14px;
+      color: var(--text);
+      font-family: 'DM Mono', monospace;
+      font-size: 13px;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      resize: none;
+    }
+
+    textarea:focus, input[type="text"]:focus, select:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-glow);
+    }
+
+    textarea { height: 90px; line-height: 1.5; }
+
+    .options-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+
+    .color-row {
+      display: flex;
+      gap: 14px;
+    }
+
+    .color-field {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    input[type="color"] {
+      width: 100%;
+      height: 40px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--bg);
+      cursor: pointer;
+      padding: 3px 5px;
+      outline: none;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--accent);
+      cursor: pointer;
+    }
+
+    .range-labels {
+      display: flex;
+      justify-content: space-between;
+      font-size: 10px;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+
+    select {
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236b6b85' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+      padding-right: 32px;
+    }
+
+    .btn-group { display: flex; gap: 10px; }
+
+    button {
+      font-family: 'Syne', sans-serif;
+      font-weight: 700;
+      font-size: 13px;
+      letter-spacing: 0.05em;
+      border: none;
+      border-radius: 10px;
+      padding: 12px 20px;
+      cursor: pointer;
+      transition: all 0.2s;
+      flex: 1;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+      box-shadow: 0 0 20px var(--accent-glow);
+    }
+
+    .btn-primary:hover {
+      background: #6d28d9;
+      transform: translateY(-1px);
+      box-shadow: 0 0 30px rgba(124, 58, 237, 0.5);
+    }
+
+    .btn-secondary {
+      background: transparent;
+      color: var(--accent-light);
+      border: 1px solid var(--border);
+    }
+
+    .btn-secondary:hover {
+      background: rgba(124, 58, 237, 0.08);
+      border-color: var(--accent);
+    }
+
+    .btn-secondary:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+    }
+
+    /* QR Preview Section */
+    .preview-section {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+    }
+
+    .qr-frame {
+      width: 220px;
+      height: 220px;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--bg);
+      position: relative;
+      overflow: hidden;
+      transition: box-shadow 0.3s;
+    }
+
+    .qr-frame.has-qr {
+      box-shadow: 0 0 40px var(--accent-glow);
+      border-color: rgba(124, 58, 237, 0.3);
+    }
+
+    .qr-frame img {
+      width: 190px;
+      height: 190px;
+      border-radius: 8px;
+      display: none;
+      animation: fadeIn 0.4s ease;
+    }
+
+    .qr-frame img.visible { display: block; }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: scale(0.92); }
+      to   { opacity: 1; transform: scale(1); }
+    }
+
+    .placeholder-icon {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      color: var(--muted);
+    }
+
+    .placeholder-icon svg { opacity: 0.4; }
+    .placeholder-icon span { font-size: 11px; letter-spacing: 0.08em; }
+
+    .qr-meta {
+      text-align: center;
+      font-size: 11px;
+      color: var(--muted);
+      max-width: 220px;
+      word-break: break-all;
+      line-height: 1.5;
+    }
+
+    .error-msg {
+      color: #f87171;
+      font-size: 12px;
+      text-align: center;
+      display: none;
+    }
+
+    .spinner {
+      width: 28px; height: 28px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      display: none;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="badge">// QR Tool</div>
+  <h1>QR Generator</h1>
+  <p class="subtitle">Node.js · Express · qrcode</p>
+</header>
+
+<div class="card">
+  <!-- Left: Form -->
+  <div class="form-section">
+    <div>
+      <label>Text or URL</label>
+      <textarea id="inputText" placeholder="https://example.com or any text..."></textarea>
+    </div>
+
+    <div class="options-grid">
+      <div>
+        <label>Size (px) — <span id="sizeVal">300</span></label>
+        <input type="range" id="size" min="100" max="600" value="300" step="50" oninput="document.getElementById('sizeVal').textContent=this.value" />
+        <div class="range-labels"><span>100</span><span>600</span></div>
+      </div>
+
+      <div>
+        <label>Error Correction</label>
+        <select id="errorLevel">
+          <option value="L">L — Low (7%)</option>
+          <option value="M" selected>M — Medium (15%)</option>
+          <option value="Q">Q — Quartile (25%)</option>
+          <option value="H">H — High (30%)</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="color-row">
+      <div class="color-field">
+        <label>QR Color</label>
+        <input type="color" id="qrColor" value="#000000" />
+      </div>
+      <div class="color-field">
+        <label>Background</label>
+        <input type="color" id="bgColor" value="#ffffff" />
+      </div>
+    </div>
+
+    <div class="btn-group">
+      <button class="btn-primary" onclick="generate()">Generate</button>
+      <button class="btn-secondary" id="dlBtn" onclick="download()" disabled>Download</button>
+    </div>
+
+    <div class="error-msg" id="errorMsg"></div>
+  </div>
+
+  <!-- Right: Preview -->
+  <div class="preview-section">
+    <div class="qr-frame" id="qrFrame">
+      <div class="placeholder-icon" id="placeholder">
+        <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="4" y="4" width="16" height="16" rx="2" stroke="currentColor" stroke-width="2"/>
+          <rect x="28" y="4" width="16" height="16" rx="2" stroke="currentColor" stroke-width="2"/>
+          <rect x="4" y="28" width="16" height="16" rx="2" stroke="currentColor" stroke-width="2"/>
+          <rect x="8" y="8" width="8" height="8" rx="1" fill="currentColor" opacity="0.5"/>
+          <rect x="32" y="8" width="8" height="8" rx="1" fill="currentColor" opacity="0.5"/>
+          <rect x="8" y="32" width="8" height="8" rx="1" fill="currentColor" opacity="0.5"/>
+          <rect x="28" y="28" width="5" height="5" rx="1" fill="currentColor" opacity="0.5"/>
+          <rect x="35" y="28" width="5" height="5" rx="1" fill="currentColor" opacity="0.5"/>
+          <rect x="28" y="35" width="5" height="5" rx="1" fill="currentColor" opacity="0.5"/>
+          <rect x="35" y="35" width="5" height="5" rx="1" fill="currentColor" opacity="0.5"/>
+        </svg>
+        <span>Preview here</span>
+      </div>
+      <div class="spinner" id="spinner"></div>
+      <img id="qrImg" alt="QR Code" />
+    </div>
+    <div class="qr-meta" id="qrMeta"></div>
+  </div>
+</div>
+
+<script>
+  let lastParams = null;
+  const apiBaseUrl = (() => {
+    if (window.location.protocol === 'file:') {
+      return 'http://localhost:3012';
+    }
+
+    try {
+      const currentUrl = new URL(window.location.href);
+      if (currentUrl.port === '3012') {
+        return currentUrl.origin;
+      }
+    } catch {
+      // Fall through to the explicit backend origin.
+    }
+
+    return 'http://localhost:3012';
+  })();
+
+  async function readApiError(res) {
+    const contentType = res.headers.get('content-type') || '';
+
+    if (contentType.includes('application/json')) {
+      try {
+        const data = await res.json();
+        return data.error || data.details || `Request failed with status ${res.status}`;
+      } catch {
+        return `Request failed with status ${res.status}`;
+      }
+    }
+
+    const text = await res.text();
+    if (text.trim().startsWith('<!DOCTYPE') || text.trim().startsWith('<html')) {
+      return 'API route returned HTML instead of JSON. Open the app through the Node server at http://localhost:3012.';
+    }
+
+    return text.trim() || `Request failed with status ${res.status}`;
+  }
+
+  async function generate() {
+    const text = document.getElementById('inputText').value.trim();
+    const size = document.getElementById('size').value;
+    const color = document.getElementById('qrColor').value;
+    const bgColor = document.getElementById('bgColor').value;
+    const errorLevel = document.getElementById('errorLevel').value;
+    const errEl = document.getElementById('errorMsg');
+
+    if (!text) {
+      showError('Please enter some text or a URL.');
+      return;
+    }
+
+    errEl.style.display = 'none';
+    setLoading(true);
+
+    try {
+      const res = await fetch(`${apiBaseUrl}/api/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text, size, color, bgColor, errorLevel }),
+      });
+
+      if (!res.ok) {
+        throw new Error(await readApiError(res));
+      }
+
+      const data = await res.json();
+
+      const img = document.getElementById('qrImg');
+      const frame = document.getElementById('qrFrame');
+      const meta = document.getElementById('qrMeta');
+
+      img.src = data.qr;
+      img.className = 'visible';
+      frame.classList.add('has-qr');
+      document.getElementById('placeholder').style.display = 'none';
+
+      const preview = text.length > 40 ? text.slice(0, 40) + '…' : text;
+      meta.textContent = preview;
+
+      lastParams = { text, size, color, bgColor, errorLevel };
+      document.getElementById('dlBtn').disabled = false;
+
+    } catch (err) {
+      showError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function download() {
+    if (!lastParams) return;
+
+    const res = await fetch(`${apiBaseUrl}/api/download`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(lastParams),
+    });
+
+    if (!res.ok) {
+      showError(await readApiError(res));
+      return;
+    }
+
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'qrcode.png';
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function setLoading(state) {
+    document.getElementById('spinner').style.display = state ? 'block' : 'none';
+    if (state) {
+      document.getElementById('qrImg').className = '';
+      document.getElementById('placeholder').style.display = 'none';
+    }
+  }
+
+  function showError(msg) {
+    const el = document.getElementById('errorMsg');
+    el.textContent = '⚠ ' + msg;
+    el.style.display = 'block';
+  }
+
+  // Generate on Enter in textarea
+  document.getElementById('inputText').addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); generate(); }
+  });
+</script>
+</body>
+</html>
